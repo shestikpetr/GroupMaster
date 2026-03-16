@@ -62,6 +62,20 @@ public class DatabaseManager {
             """);
 
             stmt.execute("""
+                CREATE TABLE IF NOT EXISTS bonuses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+                    trigger_type TEXT NOT NULL DEFAULT 'on_join',
+                    tick_interval INTEGER NOT NULL DEFAULT 0,
+                    condition TEXT NOT NULL DEFAULT '{}',
+                    action_type TEXT NOT NULL,
+                    action_value TEXT NOT NULL,
+                    merge_key TEXT NOT NULL,
+                    override INTEGER NOT NULL DEFAULT 0
+                )
+            """);
+
+            stmt.execute("""
                 CREATE TABLE IF NOT EXISTS schema_version (
                     version INTEGER NOT NULL
                 )

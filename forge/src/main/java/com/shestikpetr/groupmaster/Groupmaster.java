@@ -3,6 +3,7 @@ package com.shestikpetr.groupmaster;
 import com.shestikpetr.groupmaster.command.GroupMasterCommand;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -30,5 +31,12 @@ public class Groupmaster {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         GroupMasterCommand.register(event.getDispatcher());
+    }
+
+    @SubscribeEvent
+    public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && GroupMasterServer.getInstance() != null) {
+            GroupMasterServer.getInstance().onServerTick(event.getServer());
+        }
     }
 }

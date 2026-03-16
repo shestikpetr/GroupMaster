@@ -1,6 +1,11 @@
 package com.shestikpetr.groupmaster;
 
+import com.shestikpetr.groupmaster.bonus.BonusApplier;
+import com.shestikpetr.groupmaster.bonus.BonusRegistry;
+import com.shestikpetr.groupmaster.bonus.BonusResolver;
+import com.shestikpetr.groupmaster.bonus.BonusTickHandler;
 import com.shestikpetr.groupmaster.group.GroupManager;
+import com.shestikpetr.groupmaster.storage.BonusRepository;
 import com.shestikpetr.groupmaster.storage.DatabaseManager;
 import com.shestikpetr.groupmaster.storage.GroupRepository;
 import com.shestikpetr.groupmaster.storage.PlayerRepository;
@@ -17,6 +22,11 @@ public class GroupMasterServer {
     private final MinecraftServer server;
     private DatabaseManager databaseManager;
     private GroupManager groupManager;
+    private BonusRegistry bonusRegistry;
+    private BonusRepository bonusRepository;
+    private BonusResolver bonusResolver;
+    private BonusApplier bonusApplier;
+    private BonusTickHandler bonusTickHandler;
     private WebServer webServer;
 
     private GroupMasterServer(MinecraftServer server) {
@@ -51,6 +61,12 @@ public class GroupMasterServer {
         groupManager = new GroupManager(groupRepo, playerRepo);
         groupManager.loadAll();
 
+        bonusRegistry = new BonusRegistry();
+        bonusRepository = new BonusRepository(databaseManager);
+        bonusResolver = new BonusResolver(bonusRepository, groupManager::getHierarchyChain);
+        bonusApplier = new BonusApplier(bonusRegistry, bonusResolver);
+        bonusTickHandler = new BonusTickHandler(groupManager, bonusApplier);
+
         WebConfig webConfig = WebConfig.load(serverDir);
         webServer = new WebServer(webConfig, groupManager);
         webServer.start();
@@ -78,5 +94,34 @@ public class GroupMasterServer {
 
     public DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    public BonusRegistry getBonusRegistry() {
+        return bonusRegistry;
+    }
+
+    public BonusRepository getBonusRepository() {
+        return bonusRepository;
+    }
+
+    public BonusResolver getBonusResolver() {
+        return bonusResolver;
+    }
+
+    public BonusApplier getBonusApplier() {
+        return bonusApplier;
+    }
+
+    public BonusTickHandler getBonusTickHandler() {
+        return bonusTickHandler;
+    }
+
+    /**
+     * Called every server tick by platform-specific event handlers.
+     */
+    public void onServerTick(MinecraftServer server) {
+        if (bonusTickHandler != null) {
+            bonusTickHandler.onTick(server);
+        }
     }
 }

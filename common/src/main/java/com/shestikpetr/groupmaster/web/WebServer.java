@@ -1,7 +1,9 @@
 package com.shestikpetr.groupmaster.web;
 
 import com.shestikpetr.groupmaster.Constants;
+import com.shestikpetr.groupmaster.GroupMasterServer;
 import com.shestikpetr.groupmaster.group.GroupManager;
+import com.shestikpetr.groupmaster.web.api.BonusApiHandler;
 import com.shestikpetr.groupmaster.web.api.GroupApiHandler;
 import com.shestikpetr.groupmaster.web.api.PlayerApiHandler;
 import com.shestikpetr.groupmaster.web.sse.SseManager;
@@ -41,9 +43,13 @@ public class WebServer {
                 return t;
             }));
 
-            // CORS preflight
             GroupApiHandler groupHandler = new GroupApiHandler(groupManager, sseManager);
             PlayerApiHandler playerHandler = new PlayerApiHandler(groupManager, sseManager);
+
+            GroupMasterServer gms = GroupMasterServer.getInstance();
+            BonusApiHandler bonusHandler = new BonusApiHandler(
+                    groupManager, gms.getBonusRegistry(), gms.getBonusRepository(),
+                    gms.getBonusResolver(), sseManager);
 
             server.createContext("/api/groups", exchange -> {
                 if (handleCors(exchange)) return;
@@ -55,6 +61,12 @@ public class WebServer {
                 if (handleCors(exchange)) return;
                 if (!checkAuth(exchange)) return;
                 playerHandler.handle(exchange);
+            });
+
+            server.createContext("/api/bonuses", exchange -> {
+                if (handleCors(exchange)) return;
+                if (!checkAuth(exchange)) return;
+                bonusHandler.handle(exchange);
             });
 
             server.createContext("/api/events", exchange -> {

@@ -8,6 +8,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @Mod(Constants.MOD_ID)
 public class Groupmaster {
@@ -31,5 +32,12 @@ public class Groupmaster {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         GroupMasterCommand.register(event.getDispatcher());
+    }
+
+    @SubscribeEvent
+    public void onServerTick(ServerTickEvent.Post event) {
+        if (GroupMasterServer.getInstance() != null) {
+            GroupMasterServer.getInstance().onServerTick(event.getServer());
+        }
     }
 }

@@ -3,6 +3,9 @@ package com.shestikpetr.groupmaster.web;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.shestikpetr.groupmaster.bonus.condition.ConditionParser;
+import com.shestikpetr.groupmaster.model.Bonus;
 import com.shestikpetr.groupmaster.model.Group;
 import com.shestikpetr.groupmaster.model.PlayerGroupData;
 
@@ -69,6 +72,34 @@ public class JsonHelper {
         JsonObject obj = new JsonObject();
         obj.addProperty("message", message);
         return obj;
+    }
+
+    public static JsonObject bonusToJson(Bonus bonus) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("id", bonus.getId());
+        obj.addProperty("groupId", bonus.getGroupId());
+        obj.addProperty("trigger", bonus.getTrigger());
+        obj.addProperty("tickInterval", bonus.getTickInterval());
+        obj.addProperty("actionType", bonus.getActionType());
+        obj.addProperty("actionValue", bonus.getActionValue());
+        obj.addProperty("mergeKey", bonus.getMergeKey());
+        obj.addProperty("override", bonus.isOverride());
+        obj.addProperty("conditionDesc", ConditionParser.describe(bonus.getCondition()));
+        // Parse condition as JSON object
+        try {
+            obj.add("condition", JsonParser.parseString(bonus.getCondition()));
+        } catch (Exception e) {
+            obj.addProperty("condition", bonus.getCondition());
+        }
+        return obj;
+    }
+
+    public static JsonArray bonusesToJson(List<Bonus> bonuses) {
+        JsonArray arr = new JsonArray();
+        for (Bonus bonus : bonuses) {
+            arr.add(bonusToJson(bonus));
+        }
+        return arr;
     }
 
     public static String toJson(Object obj) {

@@ -8,5 +8,6 @@ public class GroupMasterCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         GroupCommands.register(dispatcher);
         PlayerCommands.register(dispatcher);
+        BonusCommands.register(dispatcher);
     }
 }

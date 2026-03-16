@@ -4,6 +4,7 @@ import com.shestikpetr.groupmaster.command.GroupMasterCommand;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 public class Groupmaster implements ModInitializer {
 
@@ -16,6 +17,12 @@ public class Groupmaster implements ModInitializer {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             GroupMasterCommand.register(dispatcher);
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (GroupMasterServer.getInstance() != null) {
+                GroupMasterServer.getInstance().onServerTick(server);
+            }
         });
 
         Constants.LOG.info("GroupMaster Fabric initialized");
