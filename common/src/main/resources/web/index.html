@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GroupMaster</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        header {
+            background: #1a1a2e;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #2a2a4a;
+        }
+        header h1 { font-size: 20px; color: #7c83ff; }
+        #connection-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: #2a1a1a;
+            color: #ff6b6b;
+        }
+        #connection-status.connected { background: #1a2a1a; color: #6bff6b; }
+
+        /* Auth */
+        #auth-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 60px);
+            gap: 16px;
+        }
+        #auth-screen input {
+            width: 320px;
+            padding: 10px 14px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            color: #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        #auth-screen button {
+            padding: 10px 24px;
+            background: #7c83ff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Main layout */
+        #app { display: none; }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+        .tab {
+            padding: 8px 20px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            color: #999;
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-size: 14px;
+        }
+        .tab.active { background: #2a2a4a; color: #7c83ff; border-bottom-color: #2a2a4a; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* Cards */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .toolbar h2 { font-size: 18px; color: #ccc; }
+        .btn {
+            padding: 6px 16px;
+            background: #7c83ff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn:hover { background: #6b72ee; }
+        .btn-danger { background: #ff4757; }
+        .btn-danger:hover { background: #e03a4a; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #2a2a4a;
+            font-size: 13px;
+        }
+        th { color: #888; font-weight: 500; text-transform: uppercase; font-size: 11px; }
+        tr:hover td { background: #22223a; }
+
+        /* Tree */
+        .tree { list-style: none; padding-left: 0; }
+        .tree ul { list-style: none; padding-left: 24px; }
+        .tree li {
+            padding: 6px 12px;
+            margin: 2px 0;
+            background: #1a1a2e;
+            border-radius: 4px;
+            border-left: 3px solid #7c83ff;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .tree li:hover { background: #22223a; }
+        .tree .group-id { color: #888; font-size: 11px; margin-left: 8px; }
+        .tree .group-priority { color: #555; font-size: 11px; margin-left: 8px; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 8px;
+            padding: 24px;
+            min-width: 380px;
+            max-width: 480px;
+        }
+        .modal h3 { margin-bottom: 16px; color: #ccc; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            background: #0f0f0f;
+            border: 1px solid #2a2a4a;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .btn-cancel { background: #333; }
+
+        /* Events log */
+        #events-log {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 12px;
+        }
+        .event-entry { padding: 4px 0; border-bottom: 1px solid #1f1f3a; }
+        .event-time { color: #555; }
+        .event-type { color: #7c83ff; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>GroupMaster</h1>
+    <span id="connection-status">disconnected</span>
+</header>
+
+<div id="auth-screen">
+    <h2 style="color: #ccc;">Authorization</h2>
+    <input id="token-input" type="password" placeholder="Token">
+    <button onclick="authenticate()">Login</button>
+</div>
+
+<div id="app">
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('groups')">Groups</div>
+            <div class="tab" onclick="switchTab('players')">Players</div>
+            <div class="tab" onclick="switchTab('tree')">Hierarchy</div>
+            <div class="tab" onclick="switchTab('events')">Events</div>
+        </div>
+
+        <!-- Groups -->
+        <div id="panel-groups" class="panel active">
+            <div class="toolbar">
+                <h2>Groups</h2>
+                <button class="btn" onclick="openCreateGroupModal()">+ New group</button>
+            </div>
+            <table>
+                <thead><tr><th>ID</th><th>Name</th><th>Parent</th><th>Priority</th><th>Actions</th></tr></thead>
+                <tbody id="groups-table"></tbody>
+            </table>
+        </div>
+
+        <!-- Players -->
+        <div id="panel-players" class="panel">
+            <div class="toolbar">
+                <h2>Players</h2>
+            </div>
+            <table>
+                <thead><tr><th>Name</th><th>UUID</th><th>Group</th><th>Assigned</th><th>By</th><th>Actions</th></tr></thead>
+                <tbody id="players-table"></tbody>
+            </table>
+        </div>
+
+        <!-- Tree -->
+        <div id="panel-tree" class="panel">
+            <div class="toolbar"><h2>Hierarchy</h2></div>
+            <ul id="group-tree" class="tree"></ul>
+        </div>
+
+        <!-- Events -->
+        <div id="panel-events" class="panel">
+            <div class="toolbar"><h2>Live Events</h2></div>
+            <div id="events-log"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Group Modal -->
+<div id="group-modal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="group-modal-title">New group</h3>
+        <div class="form-group">
+            <label>ID</label>
+            <input id="gm-id" type="text" placeholder="e.g. human">
+        </div>
+        <div class="form-group">
+            <label>Name</label>
+            <input id="gm-name" type="text" placeholder="e.g. Human">
+        </div>
+        <div class="form-group">
+            <label>Parent</label>
+            <select id="gm-parent"><option value="">— None —</option></select>
+        </div>
+        <div class="form-group">
+            <label>Priority</label>
+            <input id="gm-priority" type="number" value="0">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeModal('group-modal')">Cancel</button>
+            <button class="btn" id="gm-submit" onclick="submitGroup()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Modal -->
+<div id="player-modal" class="modal-overlay">
+    <div class="modal">
+        <h3>Reassign Player</h3>
+        <input id="pm-uuid" type="hidden">
+        <div class="form-group">
+            <label>Player</label>
+            <input id="pm-name" type="text" disabled>
+        </div>
+        <div class="form-group">
+            <label>Group</label>
+            <select id="pm-group"></select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeModal('player-modal')">Cancel</button>
+            <button class="btn" onclick="submitReassign()">Reassign</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('gm_token') || '';
+let BASE = window.location.origin;
+let eventSource = null;
+let editingGroupId = null;
+
+// --- Auth ---
+function authenticate() {
+    TOKEN = document.getElementById('token-input').value.trim();
+    localStorage.setItem('gm_token', TOKEN);
+    tryConnect();
+}
+
+async function tryConnect() {
+    try {
+        const res = await api('GET', '/api/groups');
+        if (res.ok) {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            loadData();
+            connectSSE();
+        } else {
+            alert('Invalid token');
+        }
+    } catch (e) {
+        alert('Cannot connect to server');
+    }
+}
+
+if (TOKEN) tryConnect();
+
+// --- API ---
+async function api(method, path, body) {
+    const opts = {
+        method,
+        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(BASE + path, opts);
+}
+
+// --- SSE ---
+function connectSSE() {
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource(BASE + '/api/events?token=' + TOKEN);
+    const status = document.getElementById('connection-status');
+
+    eventSource.addEventListener('connected', () => {
+        status.textContent = 'connected';
+        status.className = 'connected';
+    });
+
+    eventSource.addEventListener('group', (e) => {
+        const data = JSON.parse(e.data);
+        logEvent('group', data.action, data.data);
+        loadData();
+    });
+
+    eventSource.addEventListener('player', (e) => {
+        const data = JSON.parse(e.data);
+        logEvent('player', data.action, data.data);
+        loadData();
+    });
+
+    eventSource.onerror = () => {
+        status.textContent = 'disconnected';
+        status.className = '';
+    };
+}
+
+// --- Data loading ---
+async function loadData() {
+    loadGroups();
+    loadPlayers();
+    loadTree();
+}
+
+async function loadGroups() {
+    const res = await api('GET', '/api/groups');
+    const groups = await res.json();
+    const tbody = document.getElementById('groups-table');
+    tbody.innerHTML = groups.map(g => `
+        <tr>
+            <td>${esc(g.id)}</td>
+            <td>${esc(g.displayName)}</td>
+            <td>${g.parentId ? esc(g.parentId) : '—'}</td>
+            <td>${g.priority}</td>
+            <td>
+                <button class="btn btn-sm" onclick="openEditGroupModal('${esc(g.id)}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteGroup('${esc(g.id)}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function loadPlayers() {
+    const res = await api('GET', '/api/players');
+    const players = await res.json();
+    const tbody = document.getElementById('players-table');
+    tbody.innerHTML = players.map(p => `
+        <tr>
+            <td>${esc(p.playerName)}</td>
+            <td style="font-size:11px;color:#888">${p.playerUuid}</td>
+            <td>${esc(p.groupId)}</td>
+            <td>${new Date(p.assignedAt).toLocaleString()}</td>
+            <td>${esc(p.assignedBy)}</td>
+            <td>
+                <button class="btn btn-sm" onclick="openReassignModal('${p.playerUuid}', '${esc(p.playerName)}', '${esc(p.groupId)}')">Reassign</button>
+                <button class="btn btn-sm btn-danger" onclick="removePlayer('${p.playerUuid}')">Remove</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function loadTree() {
+    const res = await api('GET', '/api/groups');
+    const groups = await res.json();
+    const tree = document.getElementById('group-tree');
+    const roots = groups.filter(g => !g.parentId);
+
+    function buildTree(parent) {
+        const children = groups.filter(g => g.parentId === parent.id);
+        const childHtml = children.length
+            ? '<ul>' + children.map(c => '<li>' + nodeHtml(c) + buildTree(c) + '</li>').join('') + '</ul>'
+            : '';
+        return childHtml;
+    }
+
+    function nodeHtml(g) {
+        return `${esc(g.displayName)} <span class="group-id">${esc(g.id)}</span> <span class="group-priority">p:${g.priority}</span>`;
+    }
+
+    tree.innerHTML = roots.length
+        ? roots.map(r => '<li>' + nodeHtml(r) + buildTree(r) + '</li>').join('')
+        : '<li style="color:#888">No groups yet</li>';
+}
+
+// --- Group CRUD ---
+function openCreateGroupModal() {
+    editingGroupId = null;
+    document.getElementById('group-modal-title').textContent = 'New group';
+    document.getElementById('gm-id').value = '';
+    document.getElementById('gm-id').disabled = false;
+    document.getElementById('gm-name').value = '';
+    document.getElementById('gm-priority').value = '0';
+    document.getElementById('gm-submit').textContent = 'Create';
+    populateParentSelect('gm-parent', null);
+    openModal('group-modal');
+}
+
+async function openEditGroupModal(id) {
+    const res = await api('GET', '/api/groups/' + id);
+    const g = await res.json();
+    editingGroupId = id;
+    document.getElementById('group-modal-title').textContent = 'Edit group';
+    document.getElementById('gm-id').value = g.id;
+    document.getElementById('gm-id').disabled = true;
+    document.getElementById('gm-name').value = g.displayName;
+    document.getElementById('gm-priority').value = g.priority;
+    document.getElementById('gm-submit').textContent = 'Save';
+    populateParentSelect('gm-parent', g.parentId, g.id);
+    openModal('group-modal');
+}
+
+async function submitGroup() {
+    const id = document.getElementById('gm-id').value.trim();
+    const displayName = document.getElementById('gm-name').value.trim();
+    const parentId = document.getElementById('gm-parent').value || null;
+    const priority = parseInt(document.getElementById('gm-priority').value) || 0;
+
+    if (!id || !displayName) { alert('ID and Name are required'); return; }
+
+    if (editingGroupId) {
+        await api('PUT', '/api/groups/' + editingGroupId, { displayName, parentId, priority });
+    } else {
+        await api('POST', '/api/groups', { id, displayName, parentId, priority });
+    }
+    closeModal('group-modal');
+    loadData();
+}
+
+async function deleteGroup(id) {
+    if (!confirm('Delete group "' + id + '"? Children will be re-parented.')) return;
+    await api('DELETE', '/api/groups/' + id);
+    loadData();
+}
+
+// --- Player ---
+function openReassignModal(uuid, name, currentGroup) {
+    document.getElementById('pm-uuid').value = uuid;
+    document.getElementById('pm-name').value = name;
+    populateGroupSelect('pm-group', currentGroup);
+    openModal('player-modal');
+}
+
+async function submitReassign() {
+    const uuid = document.getElementById('pm-uuid').value;
+    const groupId = document.getElementById('pm-group').value;
+    await api('PUT', '/api/players/' + uuid, { groupId });
+    closeModal('player-modal');
+    loadData();
+}
+
+async function removePlayer(uuid) {
+    if (!confirm('Remove player from group?')) return;
+    await api('DELETE', '/api/players/' + uuid);
+    loadData();
+}
+
+// --- Helpers ---
+async function populateParentSelect(selectId, currentParentId, excludeId) {
+    const res = await api('GET', '/api/groups');
+    const groups = await res.json();
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '<option value="">— None —</option>';
+    groups.filter(g => g.id !== excludeId).forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = g.displayName + ' (' + g.id + ')';
+        if (g.id === currentParentId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+async function populateGroupSelect(selectId, currentGroupId) {
+    const res = await api('GET', '/api/groups');
+    const groups = await res.json();
+    const sel = document.getElementById(selectId);
+    sel.innerHTML = '';
+    groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.id;
+        opt.textContent = g.displayName + ' (' + g.id + ')';
+        if (g.id === currentGroupId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('panel-' + name).classList.add('active');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function logEvent(type, action, data) {
+    const log = document.getElementById('events-log');
+    const time = new Date().toLocaleTimeString();
+    const name = data.displayName || data.playerName || data.id || '';
+    log.innerHTML = `<div class="event-entry"><span class="event-time">${time}</span> <span class="event-type">[${type}:${action}]</span> ${esc(name)}</div>` + log.innerHTML;
+}
+
+function esc(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+</script>
+
+</body>
+</html>

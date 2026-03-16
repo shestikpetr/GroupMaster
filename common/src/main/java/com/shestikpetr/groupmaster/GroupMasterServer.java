@@ -4,6 +4,8 @@ import com.shestikpetr.groupmaster.group.GroupManager;
 import com.shestikpetr.groupmaster.storage.DatabaseManager;
 import com.shestikpetr.groupmaster.storage.GroupRepository;
 import com.shestikpetr.groupmaster.storage.PlayerRepository;
+import com.shestikpetr.groupmaster.web.WebConfig;
+import com.shestikpetr.groupmaster.web.WebServer;
 import net.minecraft.server.MinecraftServer;
 
 import java.nio.file.Path;
@@ -15,6 +17,7 @@ public class GroupMasterServer {
     private final MinecraftServer server;
     private DatabaseManager databaseManager;
     private GroupManager groupManager;
+    private WebServer webServer;
 
     private GroupMasterServer(MinecraftServer server) {
         this.server = server;
@@ -48,10 +51,17 @@ public class GroupMasterServer {
         groupManager = new GroupManager(groupRepo, playerRepo);
         groupManager.loadAll();
 
+        WebConfig webConfig = WebConfig.load(serverDir);
+        webServer = new WebServer(webConfig, groupManager);
+        webServer.start();
+
         Constants.LOG.info("GroupMaster server initialized");
     }
 
     private void shutdown() {
+        if (webServer != null) {
+            webServer.stop();
+        }
         if (databaseManager != null) {
             databaseManager.shutdown();
         }
