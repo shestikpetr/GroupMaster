@@ -84,6 +84,10 @@ public class JsonHelper {
         obj.addProperty("actionValue", bonus.getActionValue());
         obj.addProperty("mergeKey", bonus.getMergeKey());
         obj.addProperty("override", bonus.isOverride());
+        obj.addProperty("target", bonus.getTarget());
+        obj.addProperty("maxStacks", bonus.getMaxStacks());
+        obj.addProperty("stackMode", bonus.getStackMode());
+        obj.addProperty("resetOn", bonus.getResetOn());
         obj.addProperty("conditionDesc", ConditionParser.describe(bonus.getCondition()));
         // Parse condition as JSON object
         try {

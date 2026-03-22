@@ -131,6 +131,11 @@ public class WebServer {
         String path = exchange.getRequestURI().getPath();
         if (path.equals("/") || path.equals("/index.html")) {
             serveResource(exchange, "/web/index.html", "text/html");
+        } else if (path.startsWith("/css/") || path.startsWith("/js/")) {
+            String contentType = path.endsWith(".css") ? "text/css"
+                    : path.endsWith(".js") ? "application/javascript"
+                    : "text/plain";
+            serveResource(exchange, "/web" + path, contentType);
         } else {
             byte[] resp = "Not found".getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(404, resp.length);

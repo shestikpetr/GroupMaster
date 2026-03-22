@@ -16,8 +16,8 @@ public class BonusRepository {
 
     public Bonus create(Bonus bonus) throws SQLException {
         String sql = """
-            INSERT INTO bonuses (group_id, trigger_type, tick_interval, condition, action_type, action_value, merge_key, override)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO bonuses (group_id, trigger_type, tick_interval, condition, action_type, action_value, merge_key, override, target, max_stacks, stack_mode, reset_on)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (PreparedStatement stmt = db.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, bonus.getGroupId());
@@ -28,6 +28,10 @@ public class BonusRepository {
             stmt.setString(6, bonus.getActionValue());
             stmt.setString(7, bonus.getMergeKey());
             stmt.setBoolean(8, bonus.isOverride());
+            stmt.setString(9, bonus.getTarget());
+            stmt.setInt(10, bonus.getMaxStacks());
+            stmt.setString(11, bonus.getStackMode());
+            stmt.setString(12, bonus.getResetOn());
             stmt.executeUpdate();
 
             try (ResultSet keys = stmt.getGeneratedKeys()) {
@@ -91,7 +95,11 @@ public class BonusRepository {
                 rs.getString("action_type"),
                 rs.getString("action_value"),
                 rs.getString("merge_key"),
-                rs.getBoolean("override")
+                rs.getBoolean("override"),
+                rs.getString("target"),
+                rs.getInt("max_stacks"),
+                rs.getString("stack_mode"),
+                rs.getString("reset_on")
         );
     }
 }

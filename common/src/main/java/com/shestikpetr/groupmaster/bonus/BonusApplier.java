@@ -12,16 +12,18 @@ import java.util.Optional;
 
 /**
  * Applies and removes bonuses from players.
- * Handles on_join, on_leave triggers and condition checking.
+ * Handles on_join, on_leave triggers, condition checking, and stacking.
  */
 public class BonusApplier {
 
     private final BonusRegistry registry;
     private final BonusResolver resolver;
+    private final StackManager stackManager;
 
-    public BonusApplier(BonusRegistry registry, BonusResolver resolver) {
+    public BonusApplier(BonusRegistry registry, BonusResolver resolver, StackManager stackManager) {
         this.registry = registry;
         this.resolver = resolver;
+        this.stackManager = stackManager;
     }
 
     /**
@@ -56,7 +58,6 @@ public class BonusApplier {
 
     /**
      * Process tick bonuses for a player in a group.
-     * Called by BonusTickHandler.
      */
     public void processTick(ServerPlayer player, String groupId, int currentTick) {
         List<Bonus> bonuses = resolver.resolveByTrigger(groupId, "tick");
@@ -75,6 +76,7 @@ public class BonusApplier {
         if (oldGroupId != null) {
             applyLeaveBonuses(player, oldGroupId);
             removeJoinBonuses(player, oldGroupId);
+            stackManager.resetOnLeave(player.getUUID().toString());
         }
         applyJoinBonuses(player, newGroupId);
     }
@@ -83,6 +85,9 @@ public class BonusApplier {
         try {
             BonusCondition condition = ConditionParser.parse(bonus.getCondition());
             if (condition.test(player)) {
+                if (!stackManager.shouldApply(player.getUUID().toString(), bonus)) {
+                    return; // stacking limit reached
+                }
                 Optional<ActionType> action = registry.getAction(bonus.getActionType());
                 action.ifPresent(a -> a.apply(player, bonus.getActionValue()));
             }

@@ -14,6 +14,7 @@ public class BonusRegistry {
         registerAction(new BurnAction());
         registerAction(new CommandAction());
         registerAction(new MessageAction());
+        registerAction(new SetGroupAction());
     }
 
     public void registerAction(ActionType action) {

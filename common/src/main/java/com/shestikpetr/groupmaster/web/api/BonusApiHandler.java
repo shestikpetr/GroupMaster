@@ -23,7 +23,11 @@ import java.util.Set;
 
 public class BonusApiHandler implements HttpHandler {
 
-    private static final Set<String> TRIGGERS = Set.of("on_join", "on_leave", "tick");
+    private static final Set<String> TRIGGERS = Set.of(
+            "on_join", "on_leave", "tick",
+            "on_attack", "on_damaged", "on_kill", "on_death", "on_eat"
+    );
+    private static final Set<String> TARGETS = Set.of("self", "victim");
 
     private final GroupManager groupManager;
     private final BonusRegistry registry;
@@ -158,7 +162,11 @@ public class BonusApiHandler implements HttpHandler {
         int tickInterval = json.has("tickInterval") ? json.get("tickInterval").getAsInt() : 20;
         String condition = json.has("condition") ? json.get("condition").toString() : "{}";
         String actionType = getStringOrNull(json, "actionType");
-        String actionValue = json.has("actionValue") ? json.get("actionValue").toString() : null;
+        String actionValue = null;
+        if (json.has("actionValue")) {
+            var av = json.get("actionValue");
+            actionValue = av.isJsonPrimitive() ? av.getAsString() : av.toString();
+        }
         boolean override = json.has("override") && json.get("override").getAsBoolean();
 
         if (actionType == null || actionValue == null) {
@@ -166,8 +174,15 @@ public class BonusApiHandler implements HttpHandler {
             return;
         }
 
+        String target = getStringOr(json, "target", "self");
+
         if (!TRIGGERS.contains(trigger)) {
-            sendResponse(exchange, 400, JsonHelper.error("Invalid trigger. Use: on_join, on_leave, tick"));
+            sendResponse(exchange, 400, JsonHelper.error("Invalid trigger. Use: " + String.join(", ", TRIGGERS)));
+            return;
+        }
+
+        if (!TARGETS.contains(target)) {
+            sendResponse(exchange, 400, JsonHelper.error("Invalid target. Use: self, victim"));
             return;
         }
 
@@ -189,8 +204,22 @@ public class BonusApiHandler implements HttpHandler {
             return;
         }
 
+        int maxStacks = json.has("maxStacks") ? json.get("maxStacks").getAsInt() : 0;
+        String stackMode = getStringOr(json, "stackMode", "each");
+        String resetOn = getStringOr(json, "resetOn", "never");
+
+        if (!Set.of("each", "threshold").contains(stackMode)) {
+            sendResponse(exchange, 400, JsonHelper.error("Invalid stackMode. Use: each, threshold"));
+            return;
+        }
+        if (!Set.of("never", "on_death", "on_leave").contains(resetOn)) {
+            sendResponse(exchange, 400, JsonHelper.error("Invalid resetOn. Use: never, on_death, on_leave"));
+            return;
+        }
+
         String mergeKey = action.get().extractMergeKey(actionValue);
-        Bonus bonus = new Bonus(groupId, trigger, tickInterval, condition, actionType, actionValue, mergeKey, override);
+        Bonus bonus = new Bonus(groupId, trigger, tickInterval, condition, actionType, actionValue,
+                mergeKey, override, target, maxStacks, stackMode, resetOn);
 
         try {
             bonusRepo.create(bonus);

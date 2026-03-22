@@ -4,7 +4,9 @@
   "package": "com.shestikpetr.groupmaster.mixin",
   "refmap": "${mod_id}.refmap.json",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
+  "mixins": [
+    "PlayerEatMixin"
+  ],
   "client": [],
   "server": [],
   "injectors": {

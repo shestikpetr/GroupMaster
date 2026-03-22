@@ -26,7 +26,11 @@ import java.util.Set;
 
 public class BonusCommands {
 
-    private static final Set<String> TRIGGERS = Set.of("on_join", "on_leave", "tick");
+    private static final Set<String> TRIGGERS = Set.of(
+            "on_join", "on_leave", "tick",
+            "on_attack", "on_damaged", "on_kill", "on_death", "on_eat"
+    );
+    private static final Set<String> TARGETS = Set.of("self", "victim");
 
     private static final SuggestionProvider<CommandSourceStack> SUGGEST_GROUPS = (context, builder) ->
             SharedSuggestionProvider.suggest(
@@ -43,6 +47,9 @@ public class BonusCommands {
     private static final SuggestionProvider<CommandSourceStack> SUGGEST_TRIGGERS = (context, builder) ->
             SharedSuggestionProvider.suggest(TRIGGERS, builder);
 
+    private static final SuggestionProvider<CommandSourceStack> SUGGEST_TARGETS = (context, builder) ->
+            SharedSuggestionProvider.suggest(TARGETS, builder);
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("gm")
                 .requires(source -> source.hasPermission(2))
@@ -56,7 +63,7 @@ public class BonusCommands {
                                                 .then(Commands.argument("actionType", StringArgumentType.word())
                                                         .suggests(SUGGEST_ACTIONS)
                                                         .then(Commands.argument("actionValue", StringArgumentType.greedyString())
-                                                                .executes(ctx -> addBonus(ctx, false))
+                                                                .executes(ctx -> addBonus(ctx, false, "self"))
                                                         )
                                                 )
                                         )
@@ -71,7 +78,28 @@ public class BonusCommands {
                                                 .then(Commands.argument("actionType", StringArgumentType.word())
                                                         .suggests(SUGGEST_ACTIONS)
                                                         .then(Commands.argument("actionValue", StringArgumentType.greedyString())
-                                                                .executes(ctx -> addBonus(ctx, true))
+                                                                .executes(ctx -> addBonus(ctx, true, "self"))
+                                                        )
+                                                )
+                                        )
+                                )
+                        )
+                        // /gm bonus addtarget <group> <trigger> <target> <actionType> <actionValue>
+                        .then(Commands.literal("addtarget")
+                                .then(Commands.argument("group", StringArgumentType.word())
+                                        .suggests(SUGGEST_GROUPS)
+                                        .then(Commands.argument("trigger", StringArgumentType.word())
+                                                .suggests(SUGGEST_TRIGGERS)
+                                                .then(Commands.argument("target", StringArgumentType.word())
+                                                        .suggests(SUGGEST_TARGETS)
+                                                        .then(Commands.argument("actionType", StringArgumentType.word())
+                                                                .suggests(SUGGEST_ACTIONS)
+                                                                .then(Commands.argument("actionValue", StringArgumentType.greedyString())
+                                                                        .executes(ctx -> {
+                                                                            String target = StringArgumentType.getString(ctx, "target");
+                                                                            return addBonus(ctx, false, target);
+                                                                        })
+                                                                )
                                                         )
                                                 )
                                         )
@@ -90,6 +118,20 @@ public class BonusCommands {
                                 .then(Commands.argument("bonusId", IntegerArgumentType.integer(1))
                                         .then(Commands.argument("ticks", IntegerArgumentType.integer(1))
                                                 .executes(BonusCommands::setInterval)
+                                        )
+                                )
+                        )
+                        // /gm bonus stacks <bonusId> <maxStacks> <stackMode> <resetOn>
+                        .then(Commands.literal("stacks")
+                                .then(Commands.argument("bonusId", IntegerArgumentType.integer(1))
+                                        .then(Commands.argument("maxStacks", IntegerArgumentType.integer(0))
+                                                .then(Commands.argument("stackMode", StringArgumentType.word())
+                                                        .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(List.of("each", "threshold"), builder))
+                                                        .then(Commands.argument("resetOn", StringArgumentType.word())
+                                                                .suggests((ctx, builder) -> SharedSuggestionProvider.suggest(List.of("never", "on_death", "on_leave"), builder))
+                                                                .executes(BonusCommands::setStacks)
+                                                        )
+                                                )
                                         )
                                 )
                         )
@@ -121,7 +163,7 @@ public class BonusCommands {
         );
     }
 
-    private static int addBonus(CommandContext<CommandSourceStack> ctx, boolean override) {
+    private static int addBonus(CommandContext<CommandSourceStack> ctx, boolean override, String target) {
         String groupId = StringArgumentType.getString(ctx, "group");
         String trigger = StringArgumentType.getString(ctx, "trigger");
         String actionType = StringArgumentType.getString(ctx, "actionType");
@@ -135,7 +177,12 @@ public class BonusCommands {
         }
 
         if (!TRIGGERS.contains(trigger)) {
-            ctx.getSource().sendFailure(Component.literal("Invalid trigger. Use: on_join, on_leave, tick"));
+            ctx.getSource().sendFailure(Component.literal("Invalid trigger. Use: " + String.join(", ", TRIGGERS)));
+            return 0;
+        }
+
+        if (!TARGETS.contains(target)) {
+            ctx.getSource().sendFailure(Component.literal("Invalid target. Use: self, victim"));
             return 0;
         }
 
@@ -152,7 +199,7 @@ public class BonusCommands {
         }
 
         String mergeKey = action.get().extractMergeKey(actionValue);
-        Bonus bonus = new Bonus(groupId, trigger, 20, "{}", actionType, actionValue, mergeKey, override);
+        Bonus bonus = new Bonus(groupId, trigger, 20, "{}", actionType, actionValue, mergeKey, override, target);
 
         try {
             server.getBonusRepository().create(bonus);
@@ -218,6 +265,44 @@ public class BonusCommands {
                 stmt.setInt(2, bonusId);
                 if (stmt.executeUpdate() > 0) {
                     ctx.getSource().sendSuccess(() -> Component.literal("Interval set for bonus #" + bonusId + ": " + ticks + " ticks (" + (ticks / 20.0) + "s)")
+                            .withStyle(ChatFormatting.GREEN), true);
+                    return 1;
+                } else {
+                    ctx.getSource().sendFailure(Component.literal("Bonus #" + bonusId + " not found"));
+                    return 0;
+                }
+            }
+        } catch (SQLException e) {
+            ctx.getSource().sendFailure(Component.literal("Database error: " + e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int setStacks(CommandContext<CommandSourceStack> ctx) {
+        int bonusId = IntegerArgumentType.getInteger(ctx, "bonusId");
+        int maxStacks = IntegerArgumentType.getInteger(ctx, "maxStacks");
+        String stackMode = StringArgumentType.getString(ctx, "stackMode");
+        String resetOn = StringArgumentType.getString(ctx, "resetOn");
+
+        if (!Set.of("each", "threshold").contains(stackMode)) {
+            ctx.getSource().sendFailure(Component.literal("Invalid stack mode. Use: each, threshold"));
+            return 0;
+        }
+        if (!Set.of("never", "on_death", "on_leave").contains(resetOn)) {
+            ctx.getSource().sendFailure(Component.literal("Invalid reset_on. Use: never, on_death, on_leave"));
+            return 0;
+        }
+
+        try {
+            var conn = GroupMasterServer.getInstance().getDatabaseManager().getConnection();
+            try (var stmt = conn.prepareStatement("UPDATE bonuses SET max_stacks = ?, stack_mode = ?, reset_on = ? WHERE id = ?")) {
+                stmt.setInt(1, maxStacks);
+                stmt.setString(2, stackMode);
+                stmt.setString(3, resetOn);
+                stmt.setInt(4, bonusId);
+                if (stmt.executeUpdate() > 0) {
+                    ctx.getSource().sendSuccess(() -> Component.literal("Stacking set for bonus #" + bonusId + ": " +
+                            maxStacks + "x " + stackMode + ", reset: " + resetOn)
                             .withStyle(ChatFormatting.GREEN), true);
                     return 1;
                 } else {
@@ -304,6 +389,10 @@ public class BonusCommands {
                 .append(Component.literal("[" + b.getActionType() + "] ").withStyle(ChatFormatting.YELLOW))
                 .append(Component.literal(desc).withStyle(ChatFormatting.WHITE))
                 .append(!condDesc.equals("always") ? Component.literal(" IF " + condDesc).withStyle(ChatFormatting.LIGHT_PURPLE) : Component.empty())
+                .append(!"self".equals(b.getTarget()) ? Component.literal(" →" + b.getTarget()).withStyle(ChatFormatting.GOLD) : Component.empty())
+                .append(b.hasStacking() ? Component.literal(" [" + b.getMaxStacks() + "x " + b.getStackMode() +
+                        (!"never".equals(b.getResetOn()) ? " reset:" + b.getResetOn() : "") + "]")
+                        .withStyle(ChatFormatting.DARK_GREEN) : Component.empty())
                 .append(b.isOverride() ? Component.literal(" [OVR]").withStyle(ChatFormatting.RED) : Component.empty())
                 .append(Component.literal(" (from " + b.getGroupId() + ")").withStyle(ChatFormatting.DARK_GRAY)),
                 false);
@@ -326,6 +415,21 @@ public class BonusCommands {
                 .append(Component.literal(" - applied when player leaves group").withStyle(ChatFormatting.WHITE)), false);
         ctx.getSource().sendSuccess(() -> Component.literal("tick").withStyle(ChatFormatting.YELLOW)
                 .append(Component.literal(" - checked every N ticks (use /gm bonus interval)").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("on_attack").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - when player attacks an entity").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("on_damaged").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - when player takes damage").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("on_kill").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - when player kills an entity").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("on_death").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - when player dies").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("on_eat").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - when player eats food").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("=== Targets ===").withStyle(ChatFormatting.GOLD), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("self").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - action applies to the group member (default)").withStyle(ChatFormatting.WHITE)), false);
+        ctx.getSource().sendSuccess(() -> Component.literal("victim").withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" - action applies to the other player (PvP only)").withStyle(ChatFormatting.WHITE)), false);
 
         return 1;
     }

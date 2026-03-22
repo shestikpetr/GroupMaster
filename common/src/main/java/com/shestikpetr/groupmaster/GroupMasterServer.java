@@ -4,11 +4,14 @@ import com.shestikpetr.groupmaster.bonus.BonusApplier;
 import com.shestikpetr.groupmaster.bonus.BonusRegistry;
 import com.shestikpetr.groupmaster.bonus.BonusResolver;
 import com.shestikpetr.groupmaster.bonus.BonusTickHandler;
+import com.shestikpetr.groupmaster.bonus.EventBonusManager;
+import com.shestikpetr.groupmaster.bonus.StackManager;
 import com.shestikpetr.groupmaster.group.GroupManager;
 import com.shestikpetr.groupmaster.storage.BonusRepository;
 import com.shestikpetr.groupmaster.storage.DatabaseManager;
 import com.shestikpetr.groupmaster.storage.GroupRepository;
 import com.shestikpetr.groupmaster.storage.PlayerRepository;
+import com.shestikpetr.groupmaster.storage.StackRepository;
 import com.shestikpetr.groupmaster.web.WebConfig;
 import com.shestikpetr.groupmaster.web.WebServer;
 import net.minecraft.server.MinecraftServer;
@@ -27,6 +30,8 @@ public class GroupMasterServer {
     private BonusResolver bonusResolver;
     private BonusApplier bonusApplier;
     private BonusTickHandler bonusTickHandler;
+    private EventBonusManager eventBonusManager;
+    private StackManager stackManager;
     private WebServer webServer;
 
     private GroupMasterServer(MinecraftServer server) {
@@ -64,8 +69,13 @@ public class GroupMasterServer {
         bonusRegistry = new BonusRegistry();
         bonusRepository = new BonusRepository(databaseManager);
         bonusResolver = new BonusResolver(bonusRepository, groupManager::getHierarchyChain);
-        bonusApplier = new BonusApplier(bonusRegistry, bonusResolver);
+
+        StackRepository stackRepo = new StackRepository(databaseManager);
+        stackManager = new StackManager(stackRepo);
+
+        bonusApplier = new BonusApplier(bonusRegistry, bonusResolver, stackManager);
         bonusTickHandler = new BonusTickHandler(groupManager, bonusApplier);
+        eventBonusManager = new EventBonusManager(groupManager, bonusRegistry, bonusResolver, stackManager);
 
         WebConfig webConfig = WebConfig.load(serverDir);
         webServer = new WebServer(webConfig, groupManager);
@@ -114,6 +124,14 @@ public class GroupMasterServer {
 
     public BonusTickHandler getBonusTickHandler() {
         return bonusTickHandler;
+    }
+
+    public EventBonusManager getEventBonusManager() {
+        return eventBonusManager;
+    }
+
+    public StackManager getStackManager() {
+        return stackManager;
     }
 
     /**
