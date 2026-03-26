@@ -126,8 +126,23 @@ public class GroupApiHandler implements HttpHandler {
         String parentId = getStringOrNull(json, "parentId");
         int priority = json.has("priority") ? json.get("priority").getAsInt() : 0;
 
-        if (id == null || displayName == null) {
+        if (id == null || id.isBlank() || displayName == null || displayName.isBlank()) {
             sendResponse(exchange, 400, JsonHelper.error("'id' and 'displayName' are required"));
+            return;
+        }
+
+        if (!id.matches("^[a-z0-9_]{1,64}$")) {
+            sendResponse(exchange, 400, JsonHelper.error("Invalid group ID format (lowercase letters, digits, underscores, max 64 chars)"));
+            return;
+        }
+
+        if (displayName.length() > 128) {
+            sendResponse(exchange, 400, JsonHelper.error("Display name too long (max 128 characters)"));
+            return;
+        }
+
+        if (priority < -1000 || priority > 1000) {
+            sendResponse(exchange, 400, JsonHelper.error("Priority must be between -1000 and 1000"));
             return;
         }
 
@@ -161,6 +176,16 @@ public class GroupApiHandler implements HttpHandler {
         String displayName = json.has("displayName") ? json.get("displayName").getAsString() : group.getDisplayName();
         String parentId = json.has("parentId") ? getStringOrNull(json, "parentId") : group.getParentId();
         int priority = json.has("priority") ? json.get("priority").getAsInt() : group.getPriority();
+
+        if (displayName.isBlank() || displayName.length() > 128) {
+            sendResponse(exchange, 400, JsonHelper.error("Display name must be 1-128 characters"));
+            return;
+        }
+
+        if (priority < -1000 || priority > 1000) {
+            sendResponse(exchange, 400, JsonHelper.error("Priority must be between -1000 and 1000"));
+            return;
+        }
 
         boolean updated = groupManager.updateGroup(id, displayName, parentId, priority);
         if (updated) {

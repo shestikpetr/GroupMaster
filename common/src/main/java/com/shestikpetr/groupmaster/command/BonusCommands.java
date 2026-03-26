@@ -258,6 +258,11 @@ public class BonusCommands {
         int bonusId = IntegerArgumentType.getInteger(ctx, "bonusId");
         int ticks = IntegerArgumentType.getInteger(ctx, "ticks");
 
+        if (ticks < 1 || ticks > 72000) {
+            ctx.getSource().sendFailure(Component.literal("Tick interval must be between 1 and 72000"));
+            return 0;
+        }
+
         try {
             var conn = GroupMasterServer.getInstance().getDatabaseManager().getConnection();
             try (var stmt = conn.prepareStatement("UPDATE bonuses SET tick_interval = ? WHERE id = ?")) {

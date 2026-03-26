@@ -1,23 +1,10 @@
-// Groups tab
+// Groups — CRUD operations (modal-driven)
 
 let editingGroupId = null;
 
 async function loadGroups() {
-    const res = await api('GET', '/api/groups');
-    const groups = await res.json();
-    const tbody = document.getElementById('groups-table');
-    tbody.innerHTML = groups.map(g => `
-        <tr>
-            <td>${esc(g.id)}</td>
-            <td>${esc(g.displayName)}</td>
-            <td>${g.parentId ? esc(g.parentId) : '—'}</td>
-            <td>${g.priority}</td>
-            <td>
-                <button class="btn btn-sm" onclick="openEditGroupModal('${esc(g.id)}')">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteGroup('${esc(g.id)}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+    // Groups tab now uses the tree — just reload tree
+    await loadTree();
 }
 
 function openCreateGroupModal() {
@@ -60,11 +47,17 @@ async function submitGroup() {
         await api('POST', '/api/groups', { id, displayName, parentId, priority });
     }
     closeModal('group-modal');
-    loadAllData();
+    await loadTree();
+    if (selectedGroupId) loadGroupDetail(selectedGroupId);
 }
 
 async function deleteGroup(id) {
     if (!confirm('Delete group "' + id + '"? Children will be re-parented.')) return;
     await api('DELETE', '/api/groups/' + id);
-    loadAllData();
+    if (selectedGroupId === id) {
+        selectedGroupId = null;
+        document.getElementById('group-detail').innerHTML =
+            '<div class="detail-empty"><p style="color:#666">Group deleted. Select another group.</p></div>';
+    }
+    await loadTree();
 }

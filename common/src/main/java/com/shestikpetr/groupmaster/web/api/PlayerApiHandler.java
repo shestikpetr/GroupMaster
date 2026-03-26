@@ -96,11 +96,21 @@ public class PlayerApiHandler implements HttpHandler {
             return;
         }
 
+        if (playerName.length() > 16) {
+            sendResponse(exchange, 400, JsonHelper.error("Player name too long (max 16 characters)"));
+            return;
+        }
+
         UUID uuid;
         try {
             uuid = UUID.fromString(uuidStr);
         } catch (IllegalArgumentException e) {
             sendResponse(exchange, 400, JsonHelper.error("Invalid UUID"));
+            return;
+        }
+
+        if (groupManager.getGroup(groupId).isEmpty()) {
+            sendResponse(exchange, 404, JsonHelper.error("Group not found: " + groupId));
             return;
         }
 
@@ -133,6 +143,11 @@ public class PlayerApiHandler implements HttpHandler {
         String groupId = getStringOrNull(json, "groupId");
         if (groupId == null) {
             sendResponse(exchange, 400, JsonHelper.error("'groupId' is required"));
+            return;
+        }
+
+        if (groupManager.getGroup(groupId).isEmpty()) {
+            sendResponse(exchange, 404, JsonHelper.error("Group not found: " + groupId));
             return;
         }
 

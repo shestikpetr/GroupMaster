@@ -55,13 +55,15 @@ public class ConditionParser {
      * Validate a condition JSON string.
      * Returns null if valid, error message if not.
      */
+    private static final int MAX_DEPTH = 10;
+
     public static String validate(String json) {
         if (json == null || json.isBlank() || json.equals("{}")) {
             return null;
         }
         try {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            return validateObject(obj);
+            return validateObject(obj, 0);
         } catch (Exception e) {
             return "Invalid JSON: " + e.getMessage();
         }
@@ -150,7 +152,8 @@ public class ConditionParser {
             "in_dimension", "and", "or", "not"
     );
 
-    private static String validateObject(JsonObject obj) {
+    private static String validateObject(JsonObject obj, int depth) {
+        if (depth > MAX_DEPTH) return "Condition nesting too deep (max " + MAX_DEPTH + ")";
         if (!obj.has("type")) return "Missing 'type' field";
         String type = obj.get("type").getAsString();
         if (!KNOWN_TYPES.contains(type)) return "Unknown condition type: " + type;
@@ -158,17 +161,22 @@ public class ConditionParser {
         return switch (type) {
             case "health_below", "health_above" -> {
                 if (!obj.has("value")) yield "Missing 'value' for " + type;
+                double value = obj.get("value").getAsDouble();
+                if (value < 0.0 || value > 1.0) yield "Value for " + type + " must be between 0.0 and 1.0";
                 yield null;
             }
             case "in_dimension" -> {
                 if (!obj.has("dimension")) yield "Missing 'dimension' field";
+                String dim = obj.get("dimension").getAsString();
+                if (!dim.matches("^[a-z0-9_.\\-]+:[a-z0-9_.\\-/]+$"))
+                    yield "Invalid dimension format: " + dim + " (expected e.g. minecraft:overworld)";
                 yield null;
             }
             case "and", "or" -> {
                 if (!obj.has("conditions") || !obj.get("conditions").isJsonArray())
                     yield "Missing 'conditions' array for " + type;
                 for (var el : obj.get("conditions").getAsJsonArray()) {
-                    String err = validateObject(el.getAsJsonObject());
+                    String err = validateObject(el.getAsJsonObject(), depth + 1);
                     if (err != null) yield err;
                 }
                 yield null;
@@ -176,7 +184,7 @@ public class ConditionParser {
             case "not" -> {
                 if (!obj.has("condition") || !obj.get("condition").isJsonObject())
                     yield "Missing 'condition' object for 'not'";
-                yield validateObject(obj.get("condition").getAsJsonObject());
+                yield validateObject(obj.get("condition").getAsJsonObject(), depth + 1);
             }
             default -> null;
         };

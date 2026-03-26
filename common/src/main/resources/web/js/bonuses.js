@@ -96,11 +96,6 @@ function onBonusFilterChange() {
     renderBonusTable(val);
 }
 
-function truncate(str, len) {
-    if (!str) return '';
-    return str.length > len ? str.substring(0, len) + '...' : str;
-}
-
 // --- Create / Edit Bonus Modal ---
 
 let editingBonusId = null;
@@ -137,8 +132,8 @@ function openCreateBonusModal() {
     // Reset fields
     document.getElementById('bm-trigger').value = 'on_join';
     document.getElementById('bm-target').value = 'self';
-    document.getElementById('bm-actionValue').value = '';
-    document.getElementById('bm-condition').value = '{}';
+    initActionBuilder(actionSel.value, {});
+    initConditionBuilder({});
     document.getElementById('bm-tickInterval').value = '20';
     document.getElementById('bm-override').checked = false;
     document.getElementById('bm-maxStacks').value = '0';
@@ -191,10 +186,12 @@ async function openEditBonusModal(bonusId, groupId) {
 
     document.getElementById('bm-trigger').value = bonus.trigger;
     document.getElementById('bm-target').value = bonus.target;
-    document.getElementById('bm-actionValue').value =
-        typeof bonus.actionValue === 'object' ? JSON.stringify(bonus.actionValue) : bonus.actionValue;
-    document.getElementById('bm-condition').value =
-        typeof bonus.condition === 'object' ? JSON.stringify(bonus.condition, null, 2) : bonus.condition;
+    const actionData = typeof bonus.actionValue === 'object' ? bonus.actionValue :
+        (() => { try { return JSON.parse(bonus.actionValue); } catch(e) { return {}; } })();
+    initActionBuilder(bonus.actionType, actionData);
+    const condData = typeof bonus.condition === 'object' ? bonus.condition :
+        (() => { try { return JSON.parse(bonus.condition); } catch(e) { return {}; } })();
+    initConditionBuilder(condData);
     document.getElementById('bm-tickInterval').value = bonus.tickInterval || 20;
     document.getElementById('bm-override').checked = bonus.override;
     document.getElementById('bm-maxStacks').value = bonus.maxStacks || 0;
@@ -207,15 +204,8 @@ async function openEditBonusModal(bonusId, groupId) {
 }
 
 function updateActionHint() {
-    const type = document.getElementById('bm-actionType').value;
-    const hint = document.getElementById('bm-actionHint');
-    hint.textContent = ACTION_HINTS[type] || '';
-
-    // Auto-fill if value is empty
-    const valueField = document.getElementById('bm-actionValue');
-    if (!valueField.value && ACTION_HINTS[type]) {
-        valueField.value = ACTION_HINTS[type];
-    }
+    // Legacy — now handled by onActionTypeChanged in action-builder.js
+    onActionTypeChanged();
 }
 
 function updateTriggerFields() {
@@ -231,26 +221,33 @@ async function submitBonus() {
     const trigger = document.getElementById('bm-trigger').value;
     const target = document.getElementById('bm-target').value;
     const actionType = document.getElementById('bm-actionType').value;
-    const actionValueRaw = document.getElementById('bm-actionValue').value.trim();
-    const conditionRaw = document.getElementById('bm-condition').value.trim();
     const tickInterval = parseInt(document.getElementById('bm-tickInterval').value) || 20;
     const override = document.getElementById('bm-override').checked;
     const maxStacks = parseInt(document.getElementById('bm-maxStacks').value) || 0;
     const stackMode = document.getElementById('bm-stackMode').value;
     const resetOn = document.getElementById('bm-resetOn').value;
 
-    // Validate JSON
+    // Validate
     let actionValue, condition;
     try {
-        actionValue = JSON.parse(actionValueRaw);
+        actionValue = getActionJsonFromBuilder();
     } catch (e) {
-        alert('Invalid action value JSON: ' + e.message);
+        alert('Invalid action value: ' + e.message);
         return;
     }
     try {
-        condition = JSON.parse(conditionRaw || '{}');
+        condition = getConditionJsonFromBuilder();
     } catch (e) {
-        alert('Invalid condition JSON: ' + e.message);
+        alert('Invalid condition: ' + e.message);
+        return;
+    }
+
+    if (tickInterval < 1 || tickInterval > 72000) {
+        alert('Tick interval must be between 1 and 72000');
+        return;
+    }
+    if (maxStacks < 0 || maxStacks > 1000) {
+        alert('Max stacks must be between 0 and 1000');
         return;
     }
 
@@ -284,25 +281,3 @@ async function deleteBonus(id) {
     loadBonuses();
 }
 
-// --- Condition Builder Helper ---
-
-function insertCondition(type) {
-    const field = document.getElementById('bm-condition');
-    const templates = {
-        always: '{}',
-        is_day: '{"type":"is_day"}',
-        is_night: '{"type":"is_night"}',
-        in_sunlight: '{"type":"in_sunlight"}',
-        in_water: '{"type":"in_water"}',
-        in_rain: '{"type":"in_rain"}',
-        on_fire: '{"type":"on_fire"}',
-        sneaking: '{"type":"sneaking"}',
-        health_below: '{"type":"health_below","value":0.5}',
-        health_above: '{"type":"health_above","value":0.5}',
-        in_dimension: '{"type":"in_dimension","dimension":"minecraft:overworld"}',
-        and: '{"type":"and","conditions":[]}',
-        or: '{"type":"or","conditions":[]}',
-        not: '{"type":"not","condition":{}}'
-    };
-    field.value = templates[type] || '{}';
-}

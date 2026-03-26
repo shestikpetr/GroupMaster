@@ -6,6 +6,7 @@ import com.shestikpetr.groupmaster.group.GroupManager;
 import com.shestikpetr.groupmaster.web.api.BonusApiHandler;
 import com.shestikpetr.groupmaster.web.api.GroupApiHandler;
 import com.shestikpetr.groupmaster.web.api.PlayerApiHandler;
+import com.shestikpetr.groupmaster.web.api.StackApiHandler;
 import com.shestikpetr.groupmaster.web.sse.SseManager;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -67,6 +68,14 @@ public class WebServer {
                 if (handleCors(exchange)) return;
                 if (!checkAuth(exchange)) return;
                 bonusHandler.handle(exchange);
+            });
+
+            StackApiHandler stackHandler = new StackApiHandler(
+                    new com.shestikpetr.groupmaster.storage.StackRepository(gms.getDatabaseManager()));
+            server.createContext("/api/stacks", exchange -> {
+                if (handleCors(exchange)) return;
+                if (!checkAuth(exchange)) return;
+                stackHandler.handle(exchange);
             });
 
             server.createContext("/api/events", exchange -> {

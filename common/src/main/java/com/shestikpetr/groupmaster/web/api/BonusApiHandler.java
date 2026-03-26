@@ -169,8 +169,18 @@ public class BonusApiHandler implements HttpHandler {
         }
         boolean override = json.has("override") && json.get("override").getAsBoolean();
 
-        if (actionType == null || actionValue == null) {
+        if (actionType == null || actionType.isBlank() || actionValue == null) {
             sendResponse(exchange, 400, JsonHelper.error("'actionType' and 'actionValue' are required"));
+            return;
+        }
+
+        if (actionValue.length() > 4096) {
+            sendResponse(exchange, 400, JsonHelper.error("actionValue too long (max 4096 characters)"));
+            return;
+        }
+
+        if (tickInterval < 1 || tickInterval > 72000) {
+            sendResponse(exchange, 400, JsonHelper.error("tickInterval must be between 1 and 72000"));
             return;
         }
 
@@ -205,6 +215,10 @@ public class BonusApiHandler implements HttpHandler {
         }
 
         int maxStacks = json.has("maxStacks") ? json.get("maxStacks").getAsInt() : 0;
+        if (maxStacks < 0 || maxStacks > 1000) {
+            sendResponse(exchange, 400, JsonHelper.error("maxStacks must be between 0 and 1000"));
+            return;
+        }
         String stackMode = getStringOr(json, "stackMode", "each");
         String resetOn = getStringOr(json, "resetOn", "never");
 

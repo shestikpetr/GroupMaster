@@ -13,7 +13,6 @@ function switchTab(name) {
 function loadAllData() {
     loadGroups();
     loadPlayers();
-    loadTree();
     // Bonuses loaded on tab switch to avoid unnecessary calls
 }
 
@@ -25,6 +24,11 @@ function esc(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.substring(0, len) + '...' : str;
 }
 
 // Populate a <select> with groups

@@ -25,20 +25,25 @@
             <div class="tab active" data-tab="groups" onclick="switchTab('groups')">Groups</div>
             <div class="tab" data-tab="players" onclick="switchTab('players')">Players</div>
             <div class="tab" data-tab="bonuses" onclick="switchTab('bonuses')">Bonuses</div>
-            <div class="tab" data-tab="tree" onclick="switchTab('tree')">Hierarchy</div>
             <div class="tab" data-tab="events" onclick="switchTab('events')">Events</div>
         </div>
 
-        <!-- Groups -->
+        <!-- Groups — unified dashboard -->
         <div id="panel-groups" class="panel active">
-            <div class="toolbar">
-                <h2>Groups</h2>
-                <button class="btn" onclick="openCreateGroupModal()">+ New group</button>
+            <div class="dashboard">
+                <div class="dashboard-sidebar">
+                    <div class="toolbar">
+                        <h2>Hierarchy</h2>
+                        <button class="btn btn-sm" onclick="openCreateGroupModal()">+ New</button>
+                    </div>
+                    <ul id="group-tree" class="tree"></ul>
+                </div>
+                <div class="dashboard-main" id="group-detail">
+                    <div class="detail-empty">
+                        <p style="color:#666">Select a group from the tree to view details</p>
+                    </div>
+                </div>
             </div>
-            <table>
-                <thead><tr><th>ID</th><th>Name</th><th>Parent</th><th>Priority</th><th>Actions</th></tr></thead>
-                <tbody id="groups-table"></tbody>
-            </table>
         </div>
 
         <!-- Players -->
@@ -47,7 +52,7 @@
                 <h2>Players</h2>
             </div>
             <table>
-                <thead><tr><th>Name</th><th>UUID</th><th>Group</th><th>Assigned</th><th>By</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Name</th><th>UUID</th><th>Group</th><th>Assigned</th><th>By</th><th>Stacks</th><th>Actions</th></tr></thead>
                 <tbody id="players-table"></tbody>
             </table>
         </div>
@@ -69,12 +74,6 @@
                 </tr></thead>
                 <tbody id="bonuses-table"></tbody>
             </table>
-        </div>
-
-        <!-- Tree -->
-        <div id="panel-tree" class="panel">
-            <div class="toolbar"><h2>Hierarchy</h2></div>
-            <ul id="group-tree" class="tree"></ul>
         </div>
 
         <!-- Events -->
@@ -174,32 +173,26 @@
         <div class="form-section">Action</div>
         <div class="form-group">
             <label>Action Type</label>
-            <select id="bm-actionType" onchange="updateActionHint()"></select>
+            <select id="bm-actionType" onchange="onActionTypeChanged()"></select>
         </div>
         <div class="form-group">
-            <label>Action Value (JSON)</label>
-            <textarea id="bm-actionValue" rows="3"></textarea>
-            <div class="hint" id="bm-actionHint"></div>
+            <label>Action Value</label>
+            <div class="action-mode-toggle">
+                <button class="btn btn-sm" id="bm-action-visual-btn" onclick="setActionMode('visual')">Visual</button>
+                <button class="btn btn-sm btn-secondary" id="bm-action-json-btn" onclick="setActionMode('json')">JSON</button>
+            </div>
+            <div id="bm-action-builder"></div>
+            <textarea id="bm-actionValue" rows="3" style="display:none"></textarea>
         </div>
 
         <div class="form-section">Condition</div>
         <div class="form-group">
-            <label>Condition (JSON)</label>
-            <textarea id="bm-condition" rows="3">{}</textarea>
-            <div class="hint">
-                Quick:
-                <a href="#" onclick="insertCondition('always');return false" style="color:#7c83ff">always</a> |
-                <a href="#" onclick="insertCondition('is_day');return false" style="color:#7c83ff">is_day</a> |
-                <a href="#" onclick="insertCondition('is_night');return false" style="color:#7c83ff">is_night</a> |
-                <a href="#" onclick="insertCondition('in_sunlight');return false" style="color:#7c83ff">in_sunlight</a> |
-                <a href="#" onclick="insertCondition('in_water');return false" style="color:#7c83ff">in_water</a> |
-                <a href="#" onclick="insertCondition('sneaking');return false" style="color:#7c83ff">sneaking</a> |
-                <a href="#" onclick="insertCondition('health_below');return false" style="color:#7c83ff">health_below</a> |
-                <a href="#" onclick="insertCondition('in_dimension');return false" style="color:#7c83ff">in_dimension</a> |
-                <a href="#" onclick="insertCondition('and');return false" style="color:#7c83ff">and</a> |
-                <a href="#" onclick="insertCondition('or');return false" style="color:#7c83ff">or</a> |
-                <a href="#" onclick="insertCondition('not');return false" style="color:#7c83ff">not</a>
+            <div class="condition-mode-toggle">
+                <button class="btn btn-sm" id="bm-condition-visual-btn" onclick="setConditionMode('visual')">Visual</button>
+                <button class="btn btn-sm btn-secondary" id="bm-condition-json-btn" onclick="setConditionMode('json')">JSON</button>
             </div>
+            <div id="bm-condition-builder"></div>
+            <textarea id="bm-condition" rows="3" style="display:none">{}</textarea>
         </div>
 
         <div class="form-section">Stacking</div>
@@ -239,12 +232,28 @@
     </div>
 </div>
 
+<!-- Stack Modal -->
+<div id="stack-modal" class="modal-overlay">
+    <div class="modal">
+        <h3 id="stack-modal-title">Player Stacks</h3>
+        <table>
+            <thead><tr><th>Bonus ID</th><th>Stacks</th></tr></thead>
+            <tbody id="stack-table"></tbody>
+        </table>
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeModal('stack-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
 <script src="/js/api.js"></script>
 <script src="/js/events.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/groups.js"></script>
 <script src="/js/players.js"></script>
 <script src="/js/tree.js"></script>
+<script src="/js/condition-builder.js"></script>
+<script src="/js/action-builder.js"></script>
 <script src="/js/bonuses.js"></script>
 
 </body>

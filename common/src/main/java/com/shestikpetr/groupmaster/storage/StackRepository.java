@@ -3,6 +3,9 @@ package com.shestikpetr.groupmaster.storage;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StackRepository {
 
@@ -63,6 +66,34 @@ public class StackRepository {
             stmt.setInt(2, bonusId);
             stmt.executeUpdate();
         }
+    }
+
+    public record StackEntry(String playerUuid, int bonusId, int stacks) {}
+
+    public List<StackEntry> findAll() throws SQLException {
+        List<StackEntry> result = new ArrayList<>();
+        String sql = "SELECT player_uuid, bonus_id, stacks FROM player_bonus_stacks WHERE stacks > 0";
+        try (Statement stmt = db.getConnection().createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                result.add(new StackEntry(rs.getString("player_uuid"), rs.getInt("bonus_id"), rs.getInt("stacks")));
+            }
+        }
+        return result;
+    }
+
+    public List<StackEntry> findByPlayer(String playerUuid) throws SQLException {
+        List<StackEntry> result = new ArrayList<>();
+        String sql = "SELECT player_uuid, bonus_id, stacks FROM player_bonus_stacks WHERE player_uuid = ? AND stacks > 0";
+        try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
+            stmt.setString(1, playerUuid);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new StackEntry(rs.getString("player_uuid"), rs.getInt("bonus_id"), rs.getInt("stacks")));
+                }
+            }
+        }
+        return result;
     }
 
     public void resetAllForPlayer(String playerUuid) throws SQLException {
