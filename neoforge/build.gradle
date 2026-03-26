@@ -21,12 +21,14 @@ neoForge {
         }
         client {
             client()
+            additionalRuntimeClasspathConfiguration.extendsFrom(configurations.implementation)
         }
         data {
             data()
         }
         server {
             server()
+            additionalRuntimeClasspathConfiguration.extendsFrom(configurations.implementation)
         }
     }
     mods {

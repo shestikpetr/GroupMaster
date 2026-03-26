@@ -94,6 +94,12 @@ public class GroupRepository {
         }
     }
 
+    public void deleteAll() throws SQLException {
+        try (Statement stmt = db.getConnection().createStatement()) {
+            stmt.executeUpdate("DELETE FROM groups");
+        }
+    }
+
     public boolean exists(String id) throws SQLException {
         String sql = "SELECT 1 FROM groups WHERE id = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {

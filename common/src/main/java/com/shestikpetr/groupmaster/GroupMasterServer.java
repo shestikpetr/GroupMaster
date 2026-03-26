@@ -6,7 +6,9 @@ import com.shestikpetr.groupmaster.bonus.BonusResolver;
 import com.shestikpetr.groupmaster.bonus.BonusTickHandler;
 import com.shestikpetr.groupmaster.bonus.EventBonusManager;
 import com.shestikpetr.groupmaster.bonus.StackManager;
+import com.shestikpetr.groupmaster.config.ConfigImporter;
 import com.shestikpetr.groupmaster.group.GroupManager;
+import com.shestikpetr.groupmaster.model.PlayerGroupData;
 import com.shestikpetr.groupmaster.storage.BonusRepository;
 import com.shestikpetr.groupmaster.storage.DatabaseManager;
 import com.shestikpetr.groupmaster.storage.GroupRepository;
@@ -15,8 +17,10 @@ import com.shestikpetr.groupmaster.storage.StackRepository;
 import com.shestikpetr.groupmaster.web.WebConfig;
 import com.shestikpetr.groupmaster.web.WebServer;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 public class GroupMasterServer {
 
@@ -69,6 +73,23 @@ public class GroupMasterServer {
         bonusRegistry = new BonusRegistry();
         bonusRepository = new BonusRepository(databaseManager);
         bonusResolver = new BonusResolver(bonusRepository, groupManager::getHierarchyChain);
+
+        // Auto-import config if database is empty
+        if (groupManager.getAllGroups().isEmpty()) {
+            ConfigImporter importer = new ConfigImporter(groupRepo, bonusRepository, getConfigDir());
+            if (importer.configFileExists()) {
+                try {
+                    ConfigImporter.ImportResult result = importer.importConfig(false);
+                    if (!result.skipped()) {
+                        groupManager.loadAll();
+                        Constants.LOG.info("Auto-imported config: {} groups, {} bonuses",
+                                result.groups(), result.bonuses());
+                    }
+                } catch (Exception e) {
+                    Constants.LOG.error("Failed to auto-import config", e);
+                }
+            }
+        }
 
         StackRepository stackRepo = new StackRepository(databaseManager);
         stackManager = new StackManager(stackRepo);
@@ -141,5 +162,35 @@ public class GroupMasterServer {
         if (bonusTickHandler != null) {
             bonusTickHandler.onTick(server);
         }
+    }
+
+    public Path getConfigDir() {
+        return server.getServerDirectory().resolve("config").resolve("groupmaster");
+    }
+
+    /**
+     * Reload state after config import.
+     * @param removeOnly true = only remove active bonuses (before import), false = reload caches and re-apply
+     */
+    public void reloadState(boolean removeOnly) {
+        if (removeOnly) {
+            // Remove active bonuses from all online players
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                Optional<PlayerGroupData> data = groupManager.getPlayerGroup(player.getUUID());
+                data.ifPresent(pgd -> bonusApplier.removeJoinBonuses(player, pgd.getGroupId()));
+            }
+            return;
+        }
+
+        // Reload group cache from DB
+        groupManager.loadAll();
+
+        // Re-apply join bonuses for all online players
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Optional<PlayerGroupData> data = groupManager.getPlayerGroup(player.getUUID());
+            data.ifPresent(pgd -> bonusApplier.applyJoinBonuses(player, pgd.getGroupId()));
+        }
+
+        Constants.LOG.info("GroupMaster state reloaded");
     }
 }

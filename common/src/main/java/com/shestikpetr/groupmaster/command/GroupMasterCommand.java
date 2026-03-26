@@ -9,5 +9,6 @@ public class GroupMasterCommand {
         GroupCommands.register(dispatcher);
         PlayerCommands.register(dispatcher);
         BonusCommands.register(dispatcher);
+        ConfigCommands.register(dispatcher);
     }
 }

@@ -77,6 +77,12 @@ public class BonusRepository {
         }
     }
 
+    public void deleteAll() throws SQLException {
+        try (Statement stmt = db.getConnection().createStatement()) {
+            stmt.executeUpdate("DELETE FROM bonuses");
+        }
+    }
+
     public boolean deleteByGroup(String groupId) throws SQLException {
         String sql = "DELETE FROM bonuses WHERE group_id = ?";
         try (PreparedStatement stmt = db.getConnection().prepareStatement(sql)) {
